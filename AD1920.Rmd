@@ -9,18 +9,53 @@ output:
 # Introduction
 
 # Les données
-Nous avons un jeu de données contenant 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
+Nous avons un jeu de données contenant les mesures sur 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
 
 ```{r}
-genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE)
+genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE);
+
+sains <- genes[, 1:20];
+malades <- genes[, 21:40];
+
 ```
 
-## Résumé des données
 ```{r}
-summary(genes)
+boxplot(genes)
 ```
-
+Les valeurs aberrantes sont plutôt présentes parmi les individus malades. Autrement dit, l’évaluation de ces valeurs peuvent potentiellement révéler les indicateurs concernant la maladie. 
 ```{r}
 boxplot(t(genes))
 ```
+Le diagramme en boîtes pour les 1000 gènes met en évidence 2 groupes de gènes qui diffèrent nettement des autres. Le premier groupe de gènes, entre 10 et 21. Le deuxième groupe de gènes, entre 501 et 601.
+
+```{r}
+groupe1 <- t(genes)[, 11:20];
+groupe2 <- t(genes)[, 500:600];
+```
+
+On peut déduire la variabilité de l’expression des gènes est très faible entre les individus. Cependant, certains gènes s’exprime plus fortement que les autres et parmi les gènes dont l’expression est supérieure, la variabilité est plutôt faible.
+
+# Autres outil pour réaliser l'ACP
+## ```FactorMineR```
+```{r}
+library(FactoMineR);
+FMPCA <- PCA(t(genes), scale.unit = TRUE, ncp = 3);
+FMPCA;
+```
+
+```{r}
+FMPCA$eig
+```
+
+```{r}
+library(devtools)
+install_github("vqv/ggbiplot")
+```
+
+```{r}
+library(ggbiplot)
+prc <- prcomp(genes, center = TRUE, scale. = TRUE)
+ggbiplot(prc, ellipse = TRUE, circle = TRUE)
+```
+
 
