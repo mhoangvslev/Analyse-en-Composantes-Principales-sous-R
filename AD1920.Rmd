@@ -1,0 +1,26 @@
+---
+title: "Analyse en Composantes Principales sous R"
+author: "Minh-Hoang DANG"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Introduction
+
+# Les données
+Nous avons un jeu de données contenant 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
+
+```{r}
+genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE)
+```
+
+## Résumé des données
+```{r}
+summary(genes)
+```
+
+```{r}
+boxplot(t(genes))
+```
+
