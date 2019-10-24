@@ -35,6 +35,92 @@ groupe2 <- t(genes)[, 500:600];
 
 On peut déduire la variabilité de l’expression des gènes est très faible entre les individus. Cependant, certains gènes s’exprime plus fortement que les autres et parmi les gènes dont l’expression est supérieure, la variabilité est plutôt faible.
 
+# ACP sous R
+## Calculer le centre de gravité
+```{r}
+test.gravity <- colMeans(genes);
+test.nbIndv <- nrow(genes);
+test.nbVars <- ncol(genes);
+```
+
+## Calculer la matrice centrée
+```{r}
+reduite = TRUE;
+test.scaled <- apply(genes, 2, function(col) (col - mean(col))/ if (reduite) (sd(col) * sqrt((test.nbIndv-1)/test.nbIndv)) else 1);
+
+test.scaled2 <- scale(genes, center = TRUE, scale = TRUE)
+```
+
+## Calculer la matrice d'inertie
+$$S = \frac{1}{n}Y_c^\top \times Y_c$$
+
+```{r}
+test.inertie <- (1/test.nbIndv) * t(test.scaled) %*% test.scaled;
+test.Ig <- sum(diag(test.inertie));
+```
+
+## Des valeurs propres et les vecteurs propres
+```{r}
+eig <- eigen(test.inertie);
+test.eigenwerts <- eig$values;
+test.eigenvektors <- eig$vectors;
+
+barplot(test.eigenwerts)
+```
+
+## Composantes principales
+$F = Y_c \times U$ est la projection de $Y$. Chaque observation est une combinaison de la variable originelle et leur poids est determiné par les valeurs propres (les axes principaux).
+
+```{r}
+nbComponents <- 2 
+test.components <- test.scaled %*% test.eigenvektors[, 1:nbComponents]
+```
+
+
+## Finalement, la fonction ACP de notre rêve!
+```{r}
+ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
+  
+  result <- NULL;
+  
+  # Calcul des valeurs intermédiaires
+  result$gravity <- colMeans(genes);
+  result$nbIndv <- nrow(genes);
+  result$nbVars <- ncol(genes);
+  
+  # Centrer et/ou réduire les données
+  result$scaled <- apply(genes, 2, function(col) (col - mean(col))/ if (standardisation) (sd(col) * sqrt((result$nbIndv-1)/result$nbIndv)) else 1);
+  #result$scaled <- scale(genes, center = TRUE, scale = TRUE);
+  
+  # Calculer la matrice d'inertie
+  result$inertie <- (1/result$nbIndv) * t(result$scaled) %*% result$scaled;
+  result$Ig <- sum(diag(result$inertie));
+  
+  if(standardisation) {
+      library(corrplot);
+      corrplot(result$inertie, type="upper", order="hclust", tl.col="black")
+  }
+  
+  # Des valeurs propres et les vecteurs propres
+  eig <- eigen(result$inertie);
+  result$eigenwerts <- eig$values;
+  result$eigenvektors <- eig$vectors;
+  barplot(result$eigenwerts, main = "Taux de contribution de des axes pricipaux (valeurs propres)", col = "steelblue");
+  
+  # Composantes principales
+  result$components <- result$scaled %*% result$eigenvektors[, 1:nbComps];
+  
+  
+  # Retourner le résultat
+  return(result);
+}
+```
+
+```{r}
+testACP <- ACP(genes, standardisation = TRUE)
+```
+
+
 # Autres outil pour réaliser l'ACP
 ## ```FactorMineR```
 ```{r}
@@ -47,6 +133,7 @@ FMPCA;
 FMPCA$eig
 ```
 
+## ```prcomp```
 ```{r}
 library(devtools)
 install_github("vqv/ggbiplot")
@@ -58,4 +145,7 @@ prc <- prcomp(genes, center = TRUE, scale. = TRUE)
 ggbiplot(prc, ellipse = TRUE, circle = TRUE)
 ```
 
+```{r}
+#prc
+```
 
