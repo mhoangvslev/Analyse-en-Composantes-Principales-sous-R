@@ -65,7 +65,14 @@ eig <- eigen(test.inertie);
 test.eigenwerts <- eig$values;
 test.eigenvektors <- eig$vectors;
 
-barplot(test.eigenwerts)
+test.percentageInertie <- test.eigenwerts * 100/test.Ig;
+
+
+pie(test.percentageInertie, 
+    labels = round(test.percentageInertie, 1), 
+    col = rainbow(length(test.percentageInertie)),
+    main = "Pourcentage d'inertie associé à chaque axe")
+legend( x = "topright", legend = round(test.eigenwerts, 2), cex = 0.8, fill = rainbow(length(test.percentageInertie)))
 ```
 
 ## Composantes principales
@@ -76,6 +83,46 @@ nbComponents <- 2
 test.components <- test.scaled %*% test.eigenvektors[, 1:nbComponents]
 ```
 
+
+## Coordonnées des variables
+```{r}
+test.coords <- matrix(0, test.nbIndv, nbComponents)
+    for(indice in 1:nbComponents){
+       test.coords2[,indice] <- round(sqrt(test.eigenwerts[indice]) * test.eigenvektors[, indice], 2)
+    };
+
+test.coords2 <- matrix(
+  unlist(
+    lapply(1:nbComponents, function(indice){
+       round(sqrt(test.eigenwerts[indice]) * test.eigenvektors[, indice], 2)
+    })), ncol = nbComponents, nrow = test.nbIndv);
+
+all(test.coords2 == test.coords3) #Expected TRUE
+```
+
+## Contribution absolue
+```{r}
+test.absContrib <- matrix(0, nrow = test.nbIndv, ncol = nbComponents)
+for(indiv in 1:test.nbIndv){
+    for(axe in 1:nbComponents){
+        test.absContrib[indiv,axe]<-(((1/test.nbIndv)*test.components[indiv,axe]**2)/test.eigenwerts[axe])
+    }
+}
+test.absContrib<-round(test.absContrib*100,2)
+
+
+test.absContrib2 <- matrix(unlist(
+  lapply(1:nbComponents, function(axe){
+    round(
+      (100/(test.nbIndv*test.eigenwerts[axe])) * sapply(test.components[,axe], function(x){x**2}), 2)
+  })), nrow = test.nbIndv, ncol = nbComponents);
+
+
+all(test.absContrib == test.absContrib2)
+```
+
+contributions<-matrix(0,nbIndiv,nbAxes)
+    
 
 ## Finalement, la fonction ACP de notre rêve!
 ```{r}
@@ -89,7 +136,9 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   result$nbVars <- ncol(genes);
   
   # Centrer et/ou réduire les données
-  result$scaled <- apply(genes, 2, function(col) (col - mean(col))/ if (standardisation) (sd(col) * sqrt((result$nbIndv-1)/result$nbIndv)) else 1);
+  result$scaled <- apply(genes, 2, function(col){
+     (col - mean(col))/ if (standardisation) (sd(col) * sqrt((result$nbIndv-1)/result$nbIndv)) else 1;
+  });
   #result$scaled <- scale(genes, center = TRUE, scale = TRUE);
   
   # Calculer la matrice d'inertie
@@ -105,19 +154,39 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   eig <- eigen(result$inertie);
   result$eigenwerts <- eig$values;
   result$eigenvektors <- eig$vectors;
-  barplot(result$eigenwerts, main = "Taux de contribution de des axes pricipaux (valeurs propres)", col = "steelblue");
+  
+  result$percentageInertie <- result$eigenwerts * 100/result$Ig;
+  
+  pie(result$percentageInertie, 
+    labels = round(result$percentageInertie, 1), 
+    col = rainbow(length(result$percentageInertie)),
+    main = "Pourcentage d'inertie associé à chaque axe")
+  legend("topright", legend = round(result$eigenwerts, 2), cex = 0.8, fill = rainbow(length(result$percentageInertie)))
   
   # Composantes principales
   result$components <- result$scaled %*% result$eigenvektors[, 1:nbComps];
   
-  
+  ## Coordonnées des variables
+  result$coords <- matrix(
+    unlist(
+      lapply(1:nbComponents, function(indice){
+        round(sqrt(result$eigenwerts[indice]) * result$eigenvektors[, indice], 2)
+      })), ncol = nbComponents, nrow = result$nbIndv);
+
+  ## Contribution absolue
+  result$absContrib <- matrix(unlist(
+    lapply(1:nbComponents, function(axe){
+      round(
+        (100/(result$nbIndv*result$eigenwerts[axe])) * sapply(result$components[,axe], function(x){x**2}), 2)
+    })), nrow = result$nbIndv, ncol = nbComponents);
+
   # Retourner le résultat
   return(result);
 }
 ```
 
 ```{r}
-testACP <- ACP(genes, standardisation = TRUE)
+testACP <- ACP(genes, standardisation = FALSE)
 ```
 
 
