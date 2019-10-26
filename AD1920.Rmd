@@ -13,10 +13,6 @@ Nous avons un jeu de données contenant les mesures sur 1000 gènes de 40 indivi
 
 ```{r}
 genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE);
-
-sains <- genes[, 1:20];
-malades <- genes[, 21:40];
-
 ```
 
 ```{r}
@@ -45,10 +41,11 @@ test.nbVars <- ncol(genes);
 
 ## Calculer la matrice centrée
 ```{r}
-reduite = TRUE;
+reduite = FALSE;
 test.scaled <- apply(genes, 2, function(col) (col - mean(col))/ if (reduite) (sd(col) * sqrt((test.nbIndv-1)/test.nbIndv)) else 1);
 
-test.scaled2 <- scale(genes, center = TRUE, scale = TRUE)
+test.scaled2 <- scale(genes, center = TRUE, scale = reduite);
+#equalsTest(test.scaled, test.scaled2)
 ```
 
 ## Calculer la matrice d'inertie
@@ -62,17 +59,17 @@ test.Ig <- sum(diag(test.inertie));
 ## Des valeurs propres et les vecteurs propres
 ```{r}
 eig <- eigen(test.inertie);
-test.eigenwerts <- eig$values;
-test.eigenvektors <- eig$vectors;
+test.eigenvalues <- eig$values;
+test.eigenvectors <- eig$vectors;
 
-test.percentageInertie <- test.eigenwerts * 100/test.Ig;
+test.percentageInertie <- test.eigenvalues * 100/test.Ig;
 
 
 pie(test.percentageInertie, 
     labels = round(test.percentageInertie, 1), 
     col = rainbow(length(test.percentageInertie)),
     main = "Pourcentage d'inertie associé à chaque axe")
-legend( x = "topright", legend = round(test.eigenwerts, 2), cex = 0.8, fill = rainbow(length(test.percentageInertie)))
+legend( x = "topright", legend = round(test.eigenvalues, 2), cex = 0.8, fill = rainbow(length(test.percentageInertie)))
 ```
 
 ## Composantes principales
@@ -80,126 +77,185 @@ $F = Y_c \times U$ est la projection de $Y$. Chaque observation est une combinai
 
 ```{r}
 nbComponents <- 2 
-test.components <- test.scaled %*% test.eigenvektors[, 1:nbComponents]
+test.components <- test.scaled %*% test.eigenvectors[, 1:nbComponents]
+```
+
+```{r}
+equalsTest <- function(subjectA, subjectB, precision = 3){
+  return(all(
+    round(subjectA, precision) == round(subjectB, precision)
+  ))
+}
 ```
 
 
-## Coordonnées des variables
+## Les individus
+### Contribution relative des individus
 ```{r}
-test.coords <- matrix(0, test.nbIndv, nbComponents)
-    for(indice in 1:nbComponents){
-       test.coords2[,indice] <- round(sqrt(test.eigenwerts[indice]) * test.eigenvektors[, indice], 2)
-    };
+test.qltIndv <- matrix(0, nrow = test.nbIndv, ncol = nbComponents);
+for(indv in 1:test.nbIndv){
+  for(axe in 1:nbComponents){
+    test.qltIndv[indv, axe] <- (test.components[indv, axe]**2) / sum(test.components[indv, ]**2) 
+  }
+}
 
-test.coords2 <- matrix(
-  unlist(
-    lapply(1:nbComponents, function(indice){
-       round(sqrt(test.eigenwerts[indice]) * test.eigenvektors[, indice], 2)
-    })), ncol = nbComponents, nrow = test.nbIndv);
+test.qltIndv2 <- matrix(unlist(lapply(1:test.nbIndv, function(indv){
+  (test.components[indv, ]**2) / sum(test.components[indv, ]**2) 
+})), nrow = test.nbIndv, ncol = nbComponents, byrow = TRUE);
 
-all(test.coords2 == test.coords3) #Expected TRUE
+equalsTest(test.qltIndv, test.qltIndv2)
+equalsTest(rowSums(test.qltIndv2), 1)
 ```
 
-## Contribution absolue
+
+### Contribution absolue des individus
 ```{r}
-test.absContrib <- matrix(0, nrow = test.nbIndv, ncol = nbComponents)
+test.ctrIndv <- matrix(0, nrow = test.nbIndv, ncol = nbComponents)
 for(indiv in 1:test.nbIndv){
     for(axe in 1:nbComponents){
-        test.absContrib[indiv,axe]<-(((1/test.nbIndv)*test.components[indiv,axe]**2)/test.eigenwerts[axe])
+        test.ctrIndv[indiv,axe]<- (test.components[indiv,axe]**2)/(test.nbIndv * test.eigenvalues[axe])
     }
 }
-test.absContrib<-round(test.absContrib*100,2)
 
-
-test.absContrib2 <- matrix(unlist(
-  lapply(1:nbComponents, function(axe){
-    round(
-      (100/(test.nbIndv*test.eigenwerts[axe])) * sapply(test.components[,axe], function(x){x**2}), 2)
+test.ctrIndv2 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+    test.components[, axe]**2 / (test.nbIndv * test.eigenvalues[axe])
   })), nrow = test.nbIndv, ncol = nbComponents);
 
-
-all(test.absContrib == test.absContrib2)
+equalsTest(test.ctrIndv, test.ctrIndv2)
+equalsTest(colSums(test.ctrIndv2), 1)
 ```
 
 contributions<-matrix(0,nbIndiv,nbAxes)
-    
+
+## Variable
+### Coordonnées des variables
+```{r}
+test.coords <- matrix(0, test.nbVars, nbComponents)
+    for(axe in 1:nbComponents){
+       test.coords[,axe] <- sqrt(test.eigenvalues[axe]) * test.eigenvectors[, axe]
+    };
+
+test.coords2 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+       sqrt(test.eigenvalues[axe]) * test.eigenvectors[, axe]
+    })), ncol = nbComponents, nrow = test.nbVars);
+
+
+equalsTest(test.coords, test.coords2)
+```
+
+### Contribution relative
+```{r}
+test.qltVar <- matrix(unlist(lapply(1:test.nbVars, function(vr){
+  (test.coords[vr, ]**2) / sum(test.coords[vr, ]**2) 
+})), nrow = test.nbVars, ncol = nbComponents, byrow = TRUE);
+
+equalsTest(rowSums(test.qltVar), 1)
+```
+
+### Contribution absolue
+```{r}
+test.ctrVar <- matrix(0, nrow = test.nbVars, ncol = nbComponents);
+for(vr in 1:test.nbVars){
+  for(axe in 1:nbComponents){
+    test.ctrVar[vr, axe] <- test.coords[vr, axe]**2 / test.inertie[axe, axe] / test.eigenvalues[axe]
+  }
+}
+
+test.ctrVar1 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+    test.coords[,axe]**2 / (test.inertie[axe, axe] * test.eigenvalues[axe])
+  })), nrow = test.nbVars, ncol = nbComponents);
+
+equalsTest(test.ctrVar, test.ctrVar1)
+colSums(test.ctrVar1)
+equalsTest(colSums(test.ctrVar), 1, precision = 1)
+```
+
 
 ## Finalement, la fonction ACP de notre rêve!
 ```{r}
 ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   
-  result <- NULL;
+  result <- list();
   
   # Calcul des valeurs intermédiaires
-  result$gravity <- colMeans(genes);
-  result$nbIndv <- nrow(genes);
-  result$nbVars <- ncol(genes);
+  nbIndv <- nrow(genes);
+  nbVars <- ncol(genes);
   
   # Centrer et/ou réduire les données
   result$scaled <- apply(genes, 2, function(col){
-     (col - mean(col))/ if (standardisation) (sd(col) * sqrt((result$nbIndv-1)/result$nbIndv)) else 1;
+     (col - mean(col))/ if (standardisation) (sd(col) * sqrt((nbIndv-1)/nbIndv)) else 1;
   });
-  #result$scaled <- scale(genes, center = TRUE, scale = TRUE);
-  
+
   # Calculer la matrice d'inertie
-  result$inertie <- (1/result$nbIndv) * t(result$scaled) %*% result$scaled;
-  result$Ig <- sum(diag(result$inertie));
-  
-  if(standardisation) {
-      library(corrplot);
-      corrplot(result$inertie, type="upper", order="hclust", tl.col="black")
-  }
-  
+  result$inertie <- (1/nbIndv) * t(result$scaled) %*% result$scaled;
+
   # Des valeurs propres et les vecteurs propres
   eig <- eigen(result$inertie);
-  result$eigenwerts <- eig$values;
-  result$eigenvektors <- eig$vectors;
+  result$eigenvalues <- eig$values;
+  result$eigenvectors <- eig$vectors;
   
-  result$percentageInertie <- result$eigenwerts * 100/result$Ig;
-  
-  pie(result$percentageInertie, 
-    labels = round(result$percentageInertie, 1), 
-    col = rainbow(length(result$percentageInertie)),
-    main = "Pourcentage d'inertie associé à chaque axe")
-  legend("topright", legend = round(result$eigenwerts, 2), cex = 0.8, fill = rainbow(length(result$percentageInertie)))
+  result$eig <- cbind(result$eigenvalues,
+        result$eigenvalues / sum(result$eigenvalues),
+        cumsum(result$eigenvalues / sum(result$eigenvalues)));
+  colnames(result$eig) <- c("Valeurs propres", "% de variance", "% cumulé de variance");
   
   # Composantes principales
-  result$components <- result$scaled %*% result$eigenvektors[, 1:nbComps];
+  result$ind$coords <- result$scaled %*% result$eigenvectors[, 1:nbComps];
+  colnames(result$ind$coords) <- colnames(result$ind$coords, do.NULL = FALSE, prefix = "Comp. ");
   
-  ## Coordonnées des variables
-  result$coords <- matrix(
-    unlist(
-      lapply(1:nbComponents, function(indice){
-        round(sqrt(result$eigenwerts[indice]) * result$eigenvektors[, indice], 2)
-      })), ncol = nbComponents, nrow = result$nbIndv);
+  # Individus
+  ## Contribution relative
+  result$ind$qlt <- matrix(unlist(lapply(1:nbIndv, function(indv){
+      (result$ind$coords[indv, ]**2) / sum(result$ind$coords[indv, ]**2)
+    })), nrow = nbIndv, ncol = nbComps, byrow = TRUE);
+  colnames(result$ind$qlt) <- colnames(result$ind$qlt, do.NULL = FALSE, prefix = "Comp. ");
 
+  
   ## Contribution absolue
-  result$absContrib <- matrix(unlist(
-    lapply(1:nbComponents, function(axe){
-      round(
-        (100/(result$nbIndv*result$eigenwerts[axe])) * sapply(result$components[,axe], function(x){x**2}), 2)
-    })), nrow = result$nbIndv, ncol = nbComponents);
+  result$ind$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
+      result$ind$coords[, axe]**2 / (nbIndv * result$eigenvalues[axe])    
+    })), nrow = nbIndv, ncol = nbComps);
+  colnames(result$ind$ctr) <- colnames(result$ind$ctr, do.NULL = FALSE, prefix = "Comp. ");
 
+  # Variables
+  ## Coordonnées des variables
+  result$var$coords <- matrix(unlist(lapply(1:nbComps, function(axe){
+        round(sqrt(result$eigenvalues[axe]) * result$eigenvectors[, axe], 2)
+      })), ncol = nbComps, nrow = nbVars);
+  colnames(result$var$coords) <- colnames(result$var$coords, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Contribution relative
+  result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
+      (result$var$coords[vr, ]**2) / sum(result$var$coords[vr, ]**2) 
+    })), nrow = test.nbVars, ncol = nbComps, byrow = TRUE);
+  colnames(result$var$qlt) <- colnames(result$var$qlt, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Contribution absolue
+  result$var$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
+      result$var$coords[,axe]**2 / (result$inertie[axe, axe] * result$eigenvalues[axe])
+    })), nrow = test.nbVars, ncol = nbComponents);
+  colnames(result$var$ctr) <- colnames(result$var$ctr, do.NULL = FALSE, prefix = "Comp. ");
+  
   # Retourner le résultat
   return(result);
 }
 ```
 
 ```{r}
-testACP <- ACP(genes, standardisation = FALSE)
+testACP <- ACP(t(genes), standardisation = FALSE);
+testACP$eig
 ```
-
 
 # Autres outil pour réaliser l'ACP
 ## ```FactorMineR```
 ```{r}
 library(FactoMineR);
-FMPCA <- PCA(t(genes), scale.unit = TRUE, ncp = 3);
+FMPCA <- PCA((genes), scale.unit = FALSE, ncp = 2);
 FMPCA;
 ```
 
 ```{r}
-FMPCA$eig
+FMPCA$ind$coord
 ```
 
 ## ```prcomp```
