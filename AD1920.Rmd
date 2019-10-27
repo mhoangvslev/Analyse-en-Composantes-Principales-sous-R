@@ -7,6 +7,11 @@ output:
 ---
 
 # Introduction
+Ce rapport s'inscrit dans le cadre du projet d'analyse des données.
+Nous vous présenterons dans un premier temps les données sur lesquelles nous effectueront l'ACP.
+La deuxième partie du rapport présentera les différetes étapes importantes de l'ACP, en détaillant les opérations intermédiaires sur les matrices.
+Vous trouverez ensuite la fonction d'ACP que nous avons réalisée.
+Enfin, vous aurez le détail des différences entre notre fonction et l'existant. 
 
 # Les données
 Nous avons un jeu de données contenant les mesures sur 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
@@ -173,6 +178,8 @@ equalsTest(colSums(test.ctrVar), 1, precision = 1)
 
 ## Finalement, la fonction ACP de notre rêve!
 ```{r}
+library("plotrix")
+library("zoom")
 ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   
   result <- list();
@@ -223,6 +230,10 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
         round(sqrt(result$eigenvalues[axe]) * result$eigenvectors[, axe], 2)
       })), ncol = nbComps, nrow = nbVars);
   colnames(result$var$coords) <- colnames(result$var$coords, do.NULL = FALSE, prefix = "Comp. ");
+  result$var$graph <- plot(result$var$coords[,1],result$var$coords[,2])
+  draw.circle(0,0,1) ; arrows(0,0,result$var$coords[,1],result$var$coords[,2], 0.1, 15)
+  zoomplot.zoom(xlim = c(-1.2,1.2), ylim = c(-1.2,1.2))
+  
   
   ## Contribution relative
   result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
@@ -244,18 +255,21 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
 ```{r}
 testACP <- ACP(t(genes), standardisation = FALSE);
 testACP$eig
+testACP$var$graph
 ```
 
 # Autres outil pour réaliser l'ACP
 ## ```FactorMineR```
 ```{r}
 library(FactoMineR);
+library(ade4);
+
 FMPCA <- PCA((genes), scale.unit = FALSE, ncp = 2);
 FMPCA;
 ```
 
 ```{r}
-FMPCA$ind$coord
+s.corcircle(FMPCA$var$coord)
 ```
 
 ## ```prcomp```
@@ -272,65 +286,5 @@ ggbiplot(prc, ellipse = TRUE, circle = TRUE)
 
 ```{r}
 #prc
-```
-
-```{r}
-y<-c(2,1,3,4,5,0,7,6,9,2)
-Y<-matrix(y,ncol=2,byrow = T) #; Y
-x<-c(1,0,0,1,1,0,1,2,0,0,2,1,0,1,1,0,0,1)
-X<-matrix(x,ncol=3,byrow = T)
-
-ACP<-function(data,reduite=FALSE,nbAxes=2){
-    # Procedures 1 et 2
-    print("Matrice centree reduite :")
-    dCentree<-scale(data,scale=reduite) ; print(dCentree)
-    
-    # Procedure 3
-    nbIndiv<-nrow(dCentree)
-    print("Matrice d'inertie")
-    SI<-(1/nbIndiv)*t(dCentree)%*%dCentree ; print(SI)
-    
-    # Procedure 4
-    eig <- eigen(SI) ; print(eig)
-    valp <- round(eig$values,3) ; vecp <- round(eig$vectors,3)
-    rang <- length(valp[valp >0]) ; cval <- valp[1:rang]
-    print(rang) ; print(cval)
-    # print("Axes principaux / vecteurs propres")
-    # print(round(eig$values,2)) ; print(round(vecp,2))
-
-    # Procedure 5
-    # print("Composantes principales")
-    F=round(dCentree%*%vecp,2)
-    plot(F)
-    
-    # Choix du nombre d'axes
-    # Calcul des coordonnees des variables
-    G<-matrix(0,nrow(SI),ncol(SI))
-    for(indice in 1:nbAxes){
-       G[,indice]=round(sqrt(valp[indice])%*%vecp[,indice],2)
-    }
-    
-    contributions<-matrix(0,nbIndiv,nbAxes)
-    for(indiv in 1:nbIndiv){
-      for(axe in 1:nbAxes){
-        contributions[indiv,axe]<-(((1/nbIndiv)*F[indiv,axe])/cval[axe])
-      }
-    }
-    contributions<-round(contributions*100,2)
-    print(contributions)
-    # dim(data)
-    # print(G)
-    
-    
-    # Inertie cumulee
-    # print(round(valp/sum(valp)*100,2))
-    # print(valp) #; print(vecp)
-    # print("# Inertie")
-    # print(round(cumsum(valp/sum(valp)*100),2))
-    
-    # Calcul des contributions
-
-}
-ACP(t(genes));
 ```
 
