@@ -181,16 +181,16 @@ equalsTest(colSums(test.ctrVar), 1, precision = 1)
 
 ## Finalement, la fonction ACP de notre rêve!
 ```{r}
-ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
+ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
   
   result <- list();
   
   # Calcul des valeurs intermédiaires
-  nbIndv <- nrow(genes);
-  nbVars <- ncol(genes);
+  nbIndv <- nrow(rawData);
+  nbVars <- ncol(rawData);
   
   # Centrer et/ou réduire les données
-  scaled <- apply(genes, 2, function(col){
+  scaled <- apply(rawData, 2, function(col){
      (col - mean(col))/ if (standardisation) (sd(col) * sqrt((nbIndv-1)/nbIndv)) else 1;
   });
 
@@ -256,15 +256,17 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
 
 ```{r}
 testACP <- ACP(t(genes), standardisation = FALSE);
-#testACP$eig;
 testACP$var$cor;
+
+library(ade4);
+s.corcircle(testACP$var$cor);
 ```
 
 # Autres outil pour réaliser l'ACP
 ## ```FactorMineR```
 ```{r}
 library(FactoMineR);
-FMPCA <- PCA((genes), scale.unit = FALSE, ncp = 2);
+FMPCA <- PCA(t(genes), scale.unit = FALSE, ncp = 2);
 FMPCA;
 ```
 
