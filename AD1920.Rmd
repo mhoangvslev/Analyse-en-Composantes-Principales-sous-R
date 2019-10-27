@@ -143,6 +143,14 @@ test.coords2 <- matrix(unlist(lapply(1:nbComponents, function(axe){
 equalsTest(test.coords, test.coords2)
 ```
 
+## Corrélation entre les variables initiales et les composantes principales
+```{r}
+test.corVar <- matrix(unlist(lapply(1:nbComponents, function(axe){
+      sqrt(test.eigenvalues[axe]/test.inertie[axe, axe]) * test.eigenvectors[, axe]
+    })), ncol = nbComponents, nrow = test.nbVars);
+```
+  
+
 ### Contribution relative
 ```{r}
 test.qltVar <- matrix(unlist(lapply(1:test.nbVars, function(vr){
@@ -182,25 +190,25 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   nbVars <- ncol(genes);
   
   # Centrer et/ou réduire les données
-  result$scaled <- apply(genes, 2, function(col){
+  scaled <- apply(genes, 2, function(col){
      (col - mean(col))/ if (standardisation) (sd(col) * sqrt((nbIndv-1)/nbIndv)) else 1;
   });
 
   # Calculer la matrice d'inertie
-  result$inertie <- (1/nbIndv) * t(result$scaled) %*% result$scaled;
+  inertie <- (1/nbIndv) * t(scaled) %*% scaled;
 
   # Des valeurs propres et les vecteurs propres
-  eig <- eigen(result$inertie);
-  result$eigenvalues <- eig$values;
-  result$eigenvectors <- eig$vectors;
+  eig <- eigen(inertie);
+  eigenvalues <- eig$values;
+  eigenvectors <- eig$vectors;
   
-  result$eig <- cbind(result$eigenvalues,
-        result$eigenvalues / sum(result$eigenvalues),
-        cumsum(result$eigenvalues / sum(result$eigenvalues)));
+  result$eig <- cbind(eigenvalues,
+        round(eigenvalues / sum(eigenvalues), 3),
+        round(cumsum(eigenvalues / sum(eigenvalues)), 3));
   colnames(result$eig) <- c("Valeurs propres", "% de variance", "% cumulé de variance");
   
   # Composantes principales
-  result$ind$coords <- result$scaled %*% result$eigenvectors[, 1:nbComps];
+  result$ind$coords <- scaled %*% eigenvectors[, 1:nbComps];
   colnames(result$ind$coords) <- colnames(result$ind$coords, do.NULL = FALSE, prefix = "Comp. ");
   
   # Individus
@@ -210,19 +218,24 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
     })), nrow = nbIndv, ncol = nbComps, byrow = TRUE);
   colnames(result$ind$qlt) <- colnames(result$ind$qlt, do.NULL = FALSE, prefix = "Comp. ");
 
-  
   ## Contribution absolue
   result$ind$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
-      result$ind$coords[, axe]**2 / (nbIndv * result$eigenvalues[axe])    
+      result$ind$coords[, axe]**2 / (nbIndv * eigenvalues[axe])    
     })), nrow = nbIndv, ncol = nbComps);
   colnames(result$ind$ctr) <- colnames(result$ind$ctr, do.NULL = FALSE, prefix = "Comp. ");
 
   # Variables
   ## Coordonnées des variables
   result$var$coords <- matrix(unlist(lapply(1:nbComps, function(axe){
-        round(sqrt(result$eigenvalues[axe]) * result$eigenvectors[, axe], 2)
+        sqrt(eigenvalues[axe]) * eigenvectors[, axe]
       })), ncol = nbComps, nrow = nbVars);
   colnames(result$var$coords) <- colnames(result$var$coords, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Corrélation entre les variables initiales et les composantes principales
+  result$var$cor <- matrix(unlist(lapply(1:nbComps, function(axe){
+      sqrt(eigenvalues[axe]/inertie[axe, axe]) * eigenvectors[, axe]
+    })), ncol = nbComps, nrow = nbVars);
+  colnames(result$var$cor) <- colnames(result$var$cor, do.NULL = FALSE, prefix = "Comp. ");
   
   ## Contribution relative
   result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
@@ -232,7 +245,7 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
   
   ## Contribution absolue
   result$var$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
-      result$var$coords[,axe]**2 / (result$inertie[axe, axe] * result$eigenvalues[axe])
+      result$var$coords[,axe]**2 / (inertie[axe, axe] * eigenvalues[axe])
     })), nrow = test.nbVars, ncol = nbComponents);
   colnames(result$var$ctr) <- colnames(result$var$ctr, do.NULL = FALSE, prefix = "Comp. ");
   
@@ -243,7 +256,8 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
 
 ```{r}
 testACP <- ACP(t(genes), standardisation = FALSE);
-testACP$eig
+#testACP$eig;
+testACP$var$cor;
 ```
 
 # Autres outil pour réaliser l'ACP
