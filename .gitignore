@@ -36,4 +36,9 @@ vignettes/*.pdf
 
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
+<<<<<<< HEAD
 .Rproj.user
+=======
+
+AD1920_files/figure-latex/
+>>>>>>> hoang
