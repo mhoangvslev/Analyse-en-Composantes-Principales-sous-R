@@ -240,13 +240,13 @@ ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
   ## Contribution relative
   result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
       (result$var$coords[vr, ]**2) / sum(result$var$coords[vr, ]**2) 
-    })), nrow = test.nbVars, ncol = nbComps, byrow = TRUE);
+    })), nrow = nbVars, ncol = nbComps, byrow = TRUE);
   colnames(result$var$qlt) <- colnames(result$var$qlt, do.NULL = FALSE, prefix = "Comp. ");
   
   ## Contribution absolue
   result$var$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
       result$var$coords[,axe]**2 / (inertie[axe, axe] * eigenvalues[axe])
-    })), nrow = test.nbVars, ncol = nbComponents);
+    })), nrow = nbVars, ncol = nbComps);
   colnames(result$var$ctr) <- colnames(result$var$ctr, do.NULL = FALSE, prefix = "Comp. ");
   
   # Retourner le résultat
@@ -255,11 +255,55 @@ ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
 ```
 
 ```{r}
-testACP <- ACP(t(genes), standardisation = FALSE);
-testACP$var$cor;
+testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 3);
+```
 
-library(ade4);
-s.corcircle(testACP$var$cor);
+## Interprétation
+
+### Variable
+```{r}
+varClrs <- sapply(1:nrow(testACP$var$coords), function(id){
+  ifelse(id >= 10 && id <= 21, rgb(1,0,0,1), 
+         ifelse(id >= 501 && id <= 601, 
+                rgb(0,1,0,1), 
+         rgb(0,0,0,0.1)))
+})
+plot(testACP$var$coords, 
+     main = "Corrélation entre les composantes principales et les variables",
+     col = varClrs)
+
+library(leaflet)
+varQltClrs <- sapply(testACP$var$qlt, colorNumeric(palette = "magma", domain = testACP$var$qlt));
+plot(testACP$var$coords, 
+     main = "Contribution relative des variables sur les axes",
+     col = varQltClrs)
+
+varCtrClrs <- sapply(testACP$var$ctr, colorNumeric(palette = "magma", domain = testACP$var$ctr));
+plot(testACP$var$coords, 
+     main = "Contribution absolue des variables sur les axes",
+     col = varCtrClrs)
+```
+
+
+### Individus
+```{r}
+indCorClrs <- sapply(1:nrow(testACP$ind$coords), function(id){
+  ifelse(id <= 20, rgb(0,1,0,1), rgb(1,0,0,1))
+})
+plot(testACP$ind$coords, 
+     main = "Position des individus sur les axes",
+     col = indCorClrs)
+
+library(leaflet)
+indQltClrs <- sapply(testACP$ind$qlt, colorNumeric(palette = "magma", domain = testACP$ind$qlt));
+plot(testACP$ind$coords, 
+     main = "Contribution relative des individus sur les axes",
+     col = indQltClrs)
+
+indCtrClrs <- sapply(testACP$ind$ctr, colorNumeric(palette = "viridis", domain = testACP$ind$ctr));
+plot(testACP$ind$coords, 
+     main = "Contribution absolue des individus sur les axes",
+     col = indCtrClrs)
 ```
 
 # Autres outil pour réaliser l'ACP
@@ -267,11 +311,11 @@ s.corcircle(testACP$var$cor);
 ```{r}
 library(FactoMineR);
 FMPCA <- PCA(t(genes), scale.unit = FALSE, ncp = 2);
-FMPCA;
 ```
 
 ```{r}
-FMPCA$ind$coord
+library(factoextra)
+fviz_pca_var(FMPCA, col.var = "contrib")
 ```
 
 ## ```prcomp```
