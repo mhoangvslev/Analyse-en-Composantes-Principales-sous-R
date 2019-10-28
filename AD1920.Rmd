@@ -230,16 +230,16 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
         round(sqrt(result$eigenvalues[axe]) * result$eigenvectors[, axe], 2)
       })), ncol = nbComps, nrow = nbVars);
   colnames(result$var$coords) <- colnames(result$var$coords, do.NULL = FALSE, prefix = "Comp. ");
-  result$var$graph <- plot(result$var$coords[,1],result$var$coords[,2])
-  draw.circle(0,0,1) ; arrows(0,0,result$var$coords[,1],result$var$coords[,2], 0.1, 15)
-  zoomplot.zoom(xlim = c(-1.2,1.2), ylim = c(-1.2,1.2))
-  
+  result$var$graph <-plot(result$var$coords[,1],result$var$coords[,2])
   
   ## Contribution relative
   result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
       (result$var$coords[vr, ]**2) / sum(result$var$coords[vr, ]**2) 
     })), nrow = test.nbVars, ncol = nbComps, byrow = TRUE);
   colnames(result$var$qlt) <- colnames(result$var$qlt, do.NULL = FALSE, prefix = "Comp. ");
+  draw.circle(0,0,1) ; zoomplot.zoom(xlim = c(-1.2,1.2), ylim = c(-1.2,1.2))
+  result$var$circle <- arrows(0,0,result$var$coords[,1],result$var$coords[,2], 0.1, 15)
+  
   
   ## Contribution absolue
   result$var$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
@@ -255,7 +255,7 @@ ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
 ```{r}
 testACP <- ACP(t(genes), standardisation = FALSE);
 testACP$eig
-testACP$var$graph
+testACP$var$circle
 ```
 
 # Autres outil pour réaliser l'ACP
