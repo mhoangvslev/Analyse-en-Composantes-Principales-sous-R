@@ -340,8 +340,6 @@ plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", cl
 plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "La pathogénicité à l'échelle des gènes");
 
 plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "La pathogénicité à l'échelle des gènes");
-
->>>>>>> hoang
 ```
 
 # Autres outil pour réaliser l'ACP
