@@ -255,12 +255,31 @@ ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
 ```
 
 ```{r}
-testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 3);
+testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 2);
 ```
 
 ## Interprétation
 
 ### Variable
+```{r}
+library(ggplot2)
+library(viridis)
+
+plotACP <- function(resultACP, attribut = c("var", "ind"), prp = c("qlt", "ctr"), x, y, clr, titre){
+  df <- as.data.frame(resultACP[[attribut]][["coords"]]);
+  dfclr <- as.data.frame(resultACP[[attribut]][[prp]]);
+  plt <- ggplot(df, mapping = aes(x = df[[x]], y = df[[y]], color = dfclr[[clr]])) 
+  plt <- plt + geom_point() + scale_color_viridis(option = "magma") 
+  plt <- plt + ggtitle(titre) + xlab(x) + ylab(y) + labs(color = clr);
+  plt <- plt + theme(
+    plot.title = element_text(color = "black", face = "bold"),
+    axis.title.x = element_text(color = "black", face = "bold"),
+    axis.title.y = element_text(color = "black", face = "bold")
+  ); 
+  plt;
+}
+```
+
 ```{r}
 varClrs <- sapply(1:nrow(testACP$var$coords), function(id){
   ifelse(id >= 10 && id <= 21, rgb(1,0,0,1), 
@@ -268,42 +287,40 @@ varClrs <- sapply(1:nrow(testACP$var$coords), function(id){
                 rgb(0,1,0,1), 
          rgb(0,0,0,0.1)))
 })
-plot(testACP$var$coords, 
+plot(testACP$var$cor, 
      main = "Corrélation entre les composantes principales et les variables",
      col = varClrs)
+legend( x = "topright", legend = c("Gènes 501-601", "Gènes 10 - 21", "Autres gènes"), cex = 0.8, fill = c("green", "red", "black"))
 
-library(leaflet)
-varQltClrs <- sapply(testACP$var$qlt, colorNumeric(palette = "magma", domain = testACP$var$qlt));
-plot(testACP$var$coords, 
-     main = "Contribution relative des variables sur les axes",
-     col = varQltClrs)
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des variables sur Axe 1");
 
-varCtrClrs <- sapply(testACP$var$ctr, colorNumeric(palette = "magma", domain = testACP$var$ctr));
-plot(testACP$var$coords, 
-     main = "Contribution absolue des variables sur les axes",
-     col = varCtrClrs)
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 2", titre = "Qualité de la représentation des variables sur Axe 2");
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "La pathogénicité à l'échelle des gènes");
+
 ```
+
 
 
 ### Individus
 ```{r}
 indCorClrs <- sapply(1:nrow(testACP$ind$coords), function(id){
-  ifelse(id <= 20, rgb(0,1,0,1), rgb(1,0,0,1))
+  ifelse(id <= 20, "green", "red")
 })
 plot(testACP$ind$coords, 
      main = "Position des individus sur les axes",
      col = indCorClrs)
 
-library(leaflet)
-indQltClrs <- sapply(testACP$ind$qlt, colorNumeric(palette = "magma", domain = testACP$ind$qlt));
-plot(testACP$ind$coords, 
-     main = "Contribution relative des individus sur les axes",
-     col = indQltClrs)
+legend( x = "topright", legend = c("Individus sains", "Individus malades"), cex = 0.8, fill = c("green", "red"))
 
-indCtrClrs <- sapply(testACP$ind$ctr, colorNumeric(palette = "viridis", domain = testACP$ind$ctr));
-plot(testACP$ind$coords, 
-     main = "Contribution absolue des individus sur les axes",
-     col = indCtrClrs)
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des individus sur Axe 1");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 2", titre = "Qualité de la représentation des individus sur Axe 2");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "La pathogénicité à l'échelle des gènes");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "La pathogénicité à l'échelle des gènes");
+
 ```
 
 # Autres outil pour réaliser l'ACP
