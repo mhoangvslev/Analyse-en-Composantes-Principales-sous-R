@@ -186,14 +186,9 @@ equalsTest(colSums(test.ctrVar), 1, precision = 1)
 
 ## Finalement, la fonction ACP de notre rêve!
 ```{r}
-<<<<<<< HEAD
 library("plotrix")
 library("zoom")
 ACP <- function(data, standardisation = FALSE, nbComps = 2 ) {
-=======
-ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
->>>>>>> hoang
-  
   result <- list();
   
   # Calcul des valeurs intermédiaires
@@ -270,11 +265,6 @@ ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
 ```
 
 ```{r}
-<<<<<<< HEAD
-testACP <- ACP(t(genes), standardisation = FALSE);
-testACP$eig
-testACP$var$circle
-=======
 testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 2);
 ```
 
@@ -346,7 +336,6 @@ plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", cl
 ## ```FactorMineR```
 ```{r}
 library(FactoMineR);
-<<<<<<< HEAD
 library(ade4);
 
 FMPCA <- PCA((genes), scale.unit = FALSE, ncp = 2);
@@ -354,15 +343,12 @@ FMPCA;
 ```
 
 ```{r}
-s.corcircle(FMPCA$var$coord)
-=======
 FMPCA <- PCA(t(genes), scale.unit = FALSE, ncp = 2);
 ```
 
 ```{r}
 library(factoextra)
 fviz_pca_var(FMPCA, col.var = "contrib")
->>>>>>> hoang
 ```
 
 ## ```prcomp```
