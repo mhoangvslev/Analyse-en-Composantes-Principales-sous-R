@@ -9,18 +9,349 @@ output:
 # Introduction
 
 # Les données
-Nous avons un jeu de données contenant 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
+Nous avons un jeu de données contenant les mesures sur 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
 
 ```{r}
-genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE)
+genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE);
 ```
 
-## Résumé des données
 ```{r}
-summary(genes)
+boxplot(genes)
 ```
-
+Les valeurs aberrantes sont plutôt présentes parmi les individus malades. Autrement dit, l’évaluation de ces valeurs peuvent potentiellement révéler les indicateurs concernant la maladie. 
 ```{r}
 boxplot(t(genes))
+```
+Le diagramme en boîtes pour les 1000 gènes met en évidence 2 groupes de gènes qui diffèrent nettement des autres. Le premier groupe de gènes, entre 10 et 21. Le deuxième groupe de gènes, entre 501 et 601.
+
+```{r}
+groupe1 <- t(genes)[, 11:20];
+groupe2 <- t(genes)[, 501:600];
+boxplot(groupe1);
+boxplot(groupe2)
+```
+
+On peut déduire la variabilité de l’expression des gènes est très faible entre les individus. Cependant, certains gènes s’exprime plus fortement que les autres et parmi les gènes dont l’expression est supérieure, la variabilité est plutôt faible.
+
+# ACP sous R
+## Calculer le centre de gravité
+```{r}
+test.gravity <- colMeans(genes);
+test.nbIndv <- nrow(genes);
+test.nbVars <- ncol(genes);
+```
+
+## Calculer la matrice centrée
+```{r}
+reduite = FALSE;
+test.scaled <- apply(genes, 2, function(col) (col - mean(col))/ if (reduite) (sd(col) * sqrt((test.nbIndv-1)/test.nbIndv)) else 1);
+
+test.scaled2 <- scale(genes, center = TRUE, scale = reduite);
+#equalsTest(test.scaled, test.scaled2)
+```
+
+## Calculer la matrice d'inertie
+$$S = \frac{1}{n}Y_c^\top \times Y_c$$
+
+```{r}
+test.inertie <- (1/test.nbIndv) * t(test.scaled) %*% test.scaled;
+test.Ig <- sum(diag(test.inertie));
+```
+
+## Des valeurs propres et les vecteurs propres
+```{r}
+eig <- eigen(test.inertie);
+test.eigenvalues <- eig$values;
+test.eigenvectors <- eig$vectors;
+
+test.percentageInertie <- test.eigenvalues * 100/test.Ig;
+
+
+pie(test.percentageInertie, 
+    labels = round(test.percentageInertie, 1), 
+    col = rainbow(length(test.percentageInertie)),
+    main = "Pourcentage d'inertie associé à chaque axe")
+legend( x = "topright", legend = round(test.eigenvalues, 2), cex = 0.8, fill = rainbow(length(test.percentageInertie)))
+```
+
+## Composantes principales
+$F = Y_c \times U$ est la projection de $Y$. Chaque observation est une combinaison de la variable originelle et leur poids est determiné par les valeurs propres (les axes principaux).
+
+```{r}
+nbComponents <- 2 
+test.components <- test.scaled %*% test.eigenvectors[, 1:nbComponents]
+```
+
+```{r}
+equalsTest <- function(subjectA, subjectB, precision = 3){
+  return(all(
+    round(subjectA, precision) == round(subjectB, precision)
+  ))
+}
+```
+
+
+## Les individus
+### Contribution relative des individus
+```{r}
+test.qltIndv <- matrix(0, nrow = test.nbIndv, ncol = nbComponents);
+for(indv in 1:test.nbIndv){
+  for(axe in 1:nbComponents){
+    test.qltIndv[indv, axe] <- (test.components[indv, axe]**2) / sum(test.components[indv, ]**2) 
+  }
+}
+
+test.qltIndv2 <- matrix(unlist(lapply(1:test.nbIndv, function(indv){
+  (test.components[indv, ]**2) / sum(test.components[indv, ]**2) 
+})), nrow = test.nbIndv, ncol = nbComponents, byrow = TRUE);
+
+equalsTest(test.qltIndv, test.qltIndv2)
+equalsTest(rowSums(test.qltIndv2), 1)
+```
+
+
+### Contribution absolue des individus
+```{r}
+test.ctrIndv <- matrix(0, nrow = test.nbIndv, ncol = nbComponents)
+for(indiv in 1:test.nbIndv){
+    for(axe in 1:nbComponents){
+        test.ctrIndv[indiv,axe]<- (test.components[indiv,axe]**2)/(test.nbIndv * test.eigenvalues[axe])
+    }
+}
+
+test.ctrIndv2 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+    test.components[, axe]**2 / (test.nbIndv * test.eigenvalues[axe])
+  })), nrow = test.nbIndv, ncol = nbComponents);
+
+equalsTest(test.ctrIndv, test.ctrIndv2)
+equalsTest(colSums(test.ctrIndv2), 1)
+```
+
+contributions<-matrix(0,nbIndiv,nbAxes)
+
+## Variable
+### Coordonnées des variables
+```{r}
+test.coords <- matrix(0, test.nbVars, nbComponents)
+    for(axe in 1:nbComponents){
+       test.coords[,axe] <- sqrt(test.eigenvalues[axe]) * test.eigenvectors[, axe]
+    };
+
+test.coords2 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+       sqrt(test.eigenvalues[axe]) * test.eigenvectors[, axe]
+    })), ncol = nbComponents, nrow = test.nbVars);
+
+
+equalsTest(test.coords, test.coords2)
+```
+
+## Corrélation entre les variables initiales et les composantes principales
+```{r}
+test.corVar <- matrix(unlist(lapply(1:nbComponents, function(axe){
+      sqrt(test.eigenvalues[axe]/test.inertie[axe, axe]) * test.eigenvectors[, axe]
+    })), ncol = nbComponents, nrow = test.nbVars);
+```
+  
+
+### Contribution relative
+```{r}
+test.qltVar <- matrix(unlist(lapply(1:test.nbVars, function(vr){
+  (test.coords[vr, ]**2) / sum(test.coords[vr, ]**2) 
+})), nrow = test.nbVars, ncol = nbComponents, byrow = TRUE);
+
+equalsTest(rowSums(test.qltVar), 1)
+```
+
+### Contribution absolue
+```{r}
+test.ctrVar <- matrix(0, nrow = test.nbVars, ncol = nbComponents);
+for(vr in 1:test.nbVars){
+  for(axe in 1:nbComponents){
+    test.ctrVar[vr, axe] <- test.coords[vr, axe]**2 / test.inertie[axe, axe] / test.eigenvalues[axe]
+  }
+}
+
+test.ctrVar1 <- matrix(unlist(lapply(1:nbComponents, function(axe){
+    test.coords[,axe]**2 / (test.inertie[axe, axe] * test.eigenvalues[axe])
+  })), nrow = test.nbVars, ncol = nbComponents);
+
+equalsTest(test.ctrVar, test.ctrVar1)
+colSums(test.ctrVar1)
+equalsTest(colSums(test.ctrVar), 1, precision = 1)
+```
+
+
+## Finalement, la fonction ACP de notre rêve!
+```{r}
+ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
+  
+  result <- list();
+  
+  # Calcul des valeurs intermédiaires
+  nbIndv <- nrow(rawData);
+  nbVars <- ncol(rawData);
+  
+  # Centrer et/ou réduire les données
+  scaled <- apply(rawData, 2, function(col){
+     (col - mean(col))/ if (standardisation) (sd(col) * sqrt((nbIndv-1)/nbIndv)) else 1;
+  });
+
+  # Calculer la matrice d'inertie
+  inertie <- (1/nbIndv) * t(scaled) %*% scaled;
+
+  # Des valeurs propres et les vecteurs propres
+  eig <- eigen(inertie);
+  eigenvalues <- eig$values;
+  eigenvectors <- eig$vectors;
+  
+  result$eig <- cbind(eigenvalues,
+        round(eigenvalues / sum(eigenvalues), 3),
+        round(cumsum(eigenvalues / sum(eigenvalues)), 3));
+  colnames(result$eig) <- c("Valeurs propres", "% de variance", "% cumulé de variance");
+  
+  # Composantes principales
+  result$ind$coords <- scaled %*% eigenvectors[, 1:nbComps];
+  colnames(result$ind$coords) <- colnames(result$ind$coords, do.NULL = FALSE, prefix = "Comp. ");
+  
+  # Individus
+  ## Contribution relative
+  result$ind$qlt <- matrix(unlist(lapply(1:nbIndv, function(indv){
+      (result$ind$coords[indv, ]**2) / sum(result$ind$coords[indv, ]**2)
+    })), nrow = nbIndv, ncol = nbComps, byrow = TRUE);
+  colnames(result$ind$qlt) <- colnames(result$ind$qlt, do.NULL = FALSE, prefix = "Comp. ");
+
+  ## Contribution absolue
+  result$ind$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
+      result$ind$coords[, axe]**2 / (nbIndv * eigenvalues[axe])    
+    })), nrow = nbIndv, ncol = nbComps);
+  colnames(result$ind$ctr) <- colnames(result$ind$ctr, do.NULL = FALSE, prefix = "Comp. ");
+
+  # Variables
+  ## Coordonnées des variables
+  result$var$coords <- matrix(unlist(lapply(1:nbComps, function(axe){
+        sqrt(eigenvalues[axe]) * eigenvectors[, axe]
+      })), ncol = nbComps, nrow = nbVars);
+  colnames(result$var$coords) <- colnames(result$var$coords, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Corrélation entre les variables initiales et les composantes principales
+  result$var$cor <- matrix(unlist(lapply(1:nbComps, function(axe){
+      result$var$coords[, axe] / sqrt(inertie[axe, axe]) 
+    })), nrow = nbVars, ncol = nbComps);
+  colnames(result$var$cor) <- colnames(result$var$cor, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Contribution relative
+  result$var$qlt <- matrix(unlist(lapply(1:nbVars, function(vr){
+      (result$var$coords[vr, ]**2) / sum(result$var$coords[vr, ]**2) 
+    })), nrow = nbVars, ncol = nbComps, byrow = TRUE);
+  colnames(result$var$qlt) <- colnames(result$var$qlt, do.NULL = FALSE, prefix = "Comp. ");
+  
+  ## Contribution absolue
+  result$var$ctr <- matrix(unlist(lapply(1:nbComps, function(axe){
+      result$var$coords[,axe]**2 / (inertie[axe, axe] * eigenvalues[axe])
+    })), nrow = nbVars, ncol = nbComps);
+  colnames(result$var$ctr) <- colnames(result$var$ctr, do.NULL = FALSE, prefix = "Comp. ");
+  
+  # Retourner le résultat
+  return(result);
+}
+```
+
+```{r}
+testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 2);
+```
+
+## Interprétation
+
+### Variable
+```{r}
+library(ggplot2)
+library(viridis)
+
+plotACP <- function(resultACP, attribut = c("var", "ind"), prp = c("qlt", "ctr", "coords"), x, y, clr, titre, viridis_palette = "D"){
+  df <- as.data.frame(resultACP[[attribut]][["coords"]]);
+  
+  dfclr <- if(length(clr) == 1) dfclr <- as.data.frame(resultACP[[attribut]][[prp]])[[clr]] else clr;
+  dfclrName <- if(length(clr) == 1) clr else "Groupes";
+
+  plt <- ggplot(df, mapping = aes(x = df[[x]], y = df[[y]], color = dfclr)); 
+  plt <- plt + geom_point() 
+  
+  if(length(clr) == 1) plt <- plt + scale_color_viridis(option = viridis_palette);
+  
+  plt <- plt + ggtitle(titre) + xlab(x) + ylab(y) + labs(color = dfclrName);
+  plt <- plt + theme(
+    plot.title = element_text(color = "black", face = "bold"),
+    axis.title.x = element_text(color = "black", face = "bold"),
+    axis.title.y = element_text(color = "black", face = "bold")
+  ); 
+  plt;
+}
+```
+
+```{r}
+varClrs <- sapply(1:nrow(testACP$var$coords), function(id){
+  ifelse(id >= 11 && id <= 20, "Gènes 11-20", 
+         ifelse(id >= 501 && id <= 600, "Gènes 501-600", "Autres"))
+});
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "cor", clr = varClrs, titre = "Corrélation entre les composantes principales et les variables")
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des variables sur Axe 1");
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 2", titre = "Qualité de la représentation des variables sur Axe 2");
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "Contribution des variables sur Axe 1", viridis_palette = "plasma");
+
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "Contribution des variables sur Axe 2", viridis_palette = "plasma");
+
+```
+```{r}
+typeof("string")
+```
+
+### Individus
+```{r}
+indCorClrs <- sapply(1:nrow(testACP$ind$coords), function(id){
+  ifelse(id <= 20, "Individus sains", "Individus malades")
+})
+
+plotACP(testACP, attribut = "ind", "ind", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = indCorClrs, titre = "Position des individus")
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des individus sur Axe 1", viridis_palette = "plasma");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 2", titre = "Qualité de la représentation des individus sur Axe 2", viridis_palette = "plasma");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "Contribution des variables sur Axe 1", viridis_palette = "plasma");
+
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "Contribution des variables sur Axe 2", viridis_palette = "plasma");
+
+```
+
+# Autres outil pour réaliser l'ACP
+## ```FactorMineR```
+```{r}
+library(FactoMineR);
+FMPCA <- PCA(t(genes), scale.unit = FALSE, ncp = 2);
+```
+
+```{r}
+library(factoextra)
+fviz_pca_var(FMPCA, col.var = "contrib")
+```
+
+## ```prcomp```
+```{r}
+library(devtools)
+install_github("vqv/ggbiplot")
+```
+
+```{r}
+library(ggbiplot)
+prc <- prcomp(genes, center = TRUE, scale. = TRUE)
+ggbiplot(prc, ellipse = TRUE, circle = TRUE)
+```
+
+```{r}
+#prc
 ```
 
