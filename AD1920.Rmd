@@ -2,8 +2,10 @@
 title: "Analyse en Composantes Principales sous R"
 author: "Minh-Hoang DANG"
 output:
-  pdf_document: default
+  html_document:
+    df_print: paged
   html_notebook: default
+  pdf_document: default
 ---
 
 # Introduction
@@ -65,13 +67,6 @@ test.eigenvalues <- eig$values;
 test.eigenvectors <- eig$vectors;
 
 test.percentageInertie <- test.eigenvalues * 100/test.Ig;
-
-
-pie(test.percentageInertie, 
-    labels = round(test.percentageInertie, 1), 
-    col = rainbow(length(test.percentageInertie)),
-    main = "Pourcentage d'inertie associé à chaque axe")
-legend( x = "topright", legend = round(test.eigenvalues, 2), cex = 0.8, fill = rainbow(length(test.percentageInertie)))
 ```
 
 ## Composantes principales
@@ -204,9 +199,9 @@ ACP <- function(rawData, standardisation = FALSE, nbComps = 2 ) {
   eigenvalues <- eig$values;
   eigenvectors <- eig$vectors;
   
-  result$eig <- cbind(eigenvalues,
+  result$eig <- as.data.frame(cbind(round(eigenvalues, 3),
         round(eigenvalues / sum(eigenvalues), 3),
-        round(cumsum(eigenvalues / sum(eigenvalues)), 3));
+        round(cumsum(eigenvalues / sum(eigenvalues)), 3)));
   colnames(result$eig) <- c("Valeurs propres", "% de variance", "% cumulé de variance");
   
   # Composantes principales
@@ -267,17 +262,21 @@ testACP <- ACP(t(genes), standardisation = FALSE, nbComps = 2);
 library(ggplot2)
 library(viridis)
 
-plotACP <- function(resultACP, attribut = c("var", "ind"), prp = c("qlt", "ctr", "coords"), x, y, clr, titre, viridis_palette = "D"){
-  df <- as.data.frame(resultACP[[attribut]][["coords"]]);
+plotACP <- function(resultACP, attribut = c("var", "ind"), prp = c("qlt", "ctr", "coords"), x, y, clr, titre = "", viridis_palette = "D"){
+  continous <- length(clr) == 1;
   
-  dfclr <- if(length(clr) == 1) dfclr <- as.data.frame(resultACP[[attribut]][[prp]])[[clr]] else clr;
-  dfclrName <- if(length(clr) == 1) clr else "Groupes";
+  df <- as.data.frame(resultACP[[attribut]][["coords"]]);
+  dfclr <- if(continous) dfclr <- as.data.frame(resultACP[[attribut]][[prp]])[[clr]] else clr;
+  dfclrName <- if(continous) clr else "Groupes";
 
   plt <- ggplot(df, mapping = aes(x = df[[x]], y = df[[y]], color = dfclr)); 
   plt <- plt + geom_point() 
-  
-  if(length(clr) == 1) plt <- plt + scale_color_viridis(option = viridis_palette);
-  
+  if(!continous) {
+    plt <- plt + stat_ellipse();
+  }else{
+    plt <- plt + scale_color_viridis(option = viridis_palette);
+  }
+    
   plt <- plt + ggtitle(titre) + xlab(x) + ylab(y) + labs(color = dfclrName);
   plt <- plt + theme(
     plot.title = element_text(color = "black", face = "bold"),
@@ -289,12 +288,31 @@ plotACP <- function(resultACP, attribut = c("var", "ind"), prp = c("qlt", "ctr",
 ```
 
 ```{r}
+library(ggplot2)
+inrtPrcnt <- subset(testACP$eig, testACP$eig$`Valeurs propres` > 1)
+dimensions <- c(1: nrow(inrtPrcnt))
+
+barplot(inrtPrcnt[, 1])
+
+inrtPrcntPlot <- ggplot(inrtPrcnt, aes(x = dimensions, y = `% de variance`)) + 
+  geom_bar(stat = "identity")
+inrtPrcntPlot
+```
+
+
+```{r}
 varClrs <- sapply(1:nrow(testACP$var$coords), function(id){
   ifelse(id >= 11 && id <= 20, "Gènes 11-20", 
          ifelse(id >= 501 && id <= 600, "Gènes 501-600", "Autres"))
 });
 
-plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "cor", clr = varClrs, titre = "Corrélation entre les composantes principales et les variables")
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "cor", clr = varClrs, titre = "Corrélation entre les composantes principales et les variables");
+
+k2VarClrs <- sapply(kmeans(testACP$var$coords, 2, nstart = 25)$cluster, toString);
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = k2VarClrs, titre = "Classification 2-means des variables");
+
+k3VarClrs <- sapply(kmeans(testACP$var$coords, 3, nstart = 25)$cluster, toString);
+plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = k3VarClrs, titre = "Classification 3-means des variables");
 
 plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des variables sur Axe 1");
 
@@ -305,8 +323,12 @@ plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "ctr", cl
 plotACP(testACP, attribut = "var", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "Contribution des variables sur Axe 2", viridis_palette = "plasma");
 
 ```
+
+#### k-means en 3D
 ```{r}
-typeof("string")
+library(rgl)
+k <- kmeans(testACP$var$ctr, 15, nstart=25, iter.max=1000)
+plot3d(testACP$var$coords, col = k$clust)
 ```
 
 ### Individus
@@ -315,43 +337,66 @@ indCorClrs <- sapply(1:nrow(testACP$ind$coords), function(id){
   ifelse(id <= 20, "Individus sains", "Individus malades")
 })
 
-plotACP(testACP, attribut = "ind", "ind", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = indCorClrs, titre = "Position des individus")
+plotACP(testACP, attribut = "ind", "ind", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = indCorClrs, titre = "Position des individus sur les axes");
+
+k2IndClrs <- sapply(kmeans(testACP$ind$coords, 2)$cluster, toString);
+table(k2IndClrs)
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = k2IndClrs, titre = "Classification 2-means des individus");
+
+k3IndClrs <- sapply(kmeans(testACP$ind$coords, 3, nstart = 25)$cluster, toString);
+table(k3IndClrs)
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "coords", clr = k3IndClrs, titre = "Classification 3-means des individus");
 
 plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 1", titre = "Qualité de la représentation des individus sur Axe 1", viridis_palette = "plasma");
 
 plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "qlt", clr = "Comp. 2", titre = "Qualité de la représentation des individus sur Axe 2", viridis_palette = "plasma");
 
-plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "Contribution des variables sur Axe 1", viridis_palette = "plasma");
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 1", titre = "Contribution des individus sur Axe 1", viridis_palette = "plasma");
 
-plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "Contribution des variables sur Axe 2", viridis_palette = "plasma");
+plotACP(testACP, attribut = "ind", x = "Comp. 1", y = "Comp. 2", prp = "ctr", clr = "Comp. 2", titre = "Contribution des individus sur Axe 2", viridis_palette = "plasma");
 
 ```
 
-# Autres outil pour réaliser l'ACP
-## ```FactorMineR```
-```{r}
-library(FactoMineR);
-FMPCA <- PCA(t(genes), scale.unit = FALSE, ncp = 2);
-```
+# Autre outils ACP
 
+## ```FactoMineR```
 ```{r}
+library(FactoMineR)
 library(factoextra)
-fviz_pca_var(FMPCA, col.var = "contrib")
+factominer <- PCA(t(genes), scale.unit = FALSE, ncp = 2)
+fviz_eig(factominer, addlabels = TRUE)
 ```
 
-## ```prcomp```
+### Variables
 ```{r}
-library(devtools)
-install_github("vqv/ggbiplot")
+fviz_pca_var(factominer, col.var = "cos2") + scale_color_viridis(option = "D")
+fviz_pca_var(factominer, col.var = "contrib") + scale_color_viridis(option = "D")
+fviz_pca_var(factominer, col.var = varClrs, geom.var = "point", addEllipse = TRUE, legend.title = "marquage initial")
+fviz_pca_var(factominer, col.var = k2VarClrs, geom.var = "point", addEllipse = TRUE, legend.title = "2-means classification")
 ```
 
+### Individus
 ```{r}
-library(ggbiplot)
-prc <- prcomp(genes, center = TRUE, scale. = TRUE)
-ggbiplot(prc, ellipse = TRUE, circle = TRUE)
+fviz_pca_ind(factominer, col.ind = "cos2") + scale_color_viridis(option = "plasma")
+fviz_pca_ind(factominer, col.ind = "contrib") + scale_color_viridis(option = "plasma")
+fviz_pca_ind(factominer, col.ind = indCorClrs, geom.ind = "point", addEllipses = TRUE, legend.title = "marquage initial")
+fviz_pca_ind(factominer, col.ind = k2IndClrs, geom.ind = "point", addEllipses = TRUE, legend.title = "3-means classification")
 ```
 
+
 ```{r}
-#prc
+library(ggfortify)
+library(ggplot2)
+
+prcompsInd <- prcomp(t(genes))
+prcompsVar <- prcomp(genes)
+autoplot(prcompsVar, colour = sapply(1:nrow(prcompsVar$x), function(id){
+  ifelse(id >= 11 && id <= 20 , rgb(1, 0, 0, 1), ifelse(id >= 501 && id <= 600, rgb(0, 1, 0, 1), rgb(0, 0, 0, 0.2)))
+}))
+
+library(cluster)
+autoplot(fanny(as.data.frame(t(genes)), 2), frame = TRUE, label = TRUE)
 ```
+
+
 
