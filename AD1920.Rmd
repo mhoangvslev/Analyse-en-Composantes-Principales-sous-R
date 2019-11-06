@@ -1,20 +1,23 @@
 ---
 title: "Analyse en Composantes Principales sous R"
-author: "Minh-Hoang DANG"
+author: "Clément ANTHEAUME & Minh-Hoang DANG"
 output:
   html_document:
+    toc: yes
     df_print: paged
+    
   html_notebook: default
   pdf_document: default
 ---
 
 # Introduction
+Dans ce notebook, nous allons détailler tous les démarches que nous avons fait pour construire une fonction permettant de faire l'ACP et une fonction qui permet d'illustrer les résultats avec ```ggplot2```. Ce notebook peut être considéré comme l'annexe du [rapport](https://docs.google.com/document/d/18y73gUgeBsztMOc3rPa-kXOBZYtIqHdPNEHJc_8H4Qs/edit?usp=sharing). Le code source du projet est disponible sur [GitHub](https://github.com/mhoangvslev/Analyse-en-Composantes-Principales-sous-R).
 
 # Les données
 Nous avons un jeu de données contenant les mesures sur 1000 gènes de 40 individus. Les 20 premiers individus sont en bonne santé et les autres sont malades. A travers des analyses, nous visons à détecter les gènes qui contribue à la maladie.
 
 ```{r}
-genes <- read.csv("/media/minhhoangdang/WINDOWS/Users/minhh/OneDrive/UnivN/M1/DataAnalysis/Projet/Docs/Projet M1 AD 1920.csv", header=FALSE);
+genes <- read.csv("./Projet M1 AD 1920.csv", header=FALSE);
 ```
 
 ```{r}
@@ -383,6 +386,23 @@ fviz_pca_ind(factominer, col.ind = indCorClrs, geom.ind = "point", addEllipses =
 fviz_pca_ind(factominer, col.ind = k2IndClrs, geom.ind = "point", addEllipses = TRUE, legend.title = "3-means classification")
 ```
 
+### Comparaison avec notre ACP
+#### Variables
+```{r}
+equalsTest(abs(testACP$var$coords), abs(factominer$var$coord))
+equalsTest(abs(testACP$var$cor), abs(factominer$var$cor))
+equalsTest(abs(testACP$var$qlt), abs(factominer$var$cos2))
+equalsTest(abs(testACP$var$ctr), abs(factominer$var$contrib))
+```
+
+#### Individus
+```{r}
+equalsTest(abs(testACP$ind$coords), abs(factominer$ind$coord))
+equalsTest(abs(testACP$ind$qlt), abs(factominer$ind$cos2))
+equalsTest(abs(testACP$ind$ctr), abs(factominer$ind$contrib))
+```
+
+## ```prcomp```
 
 ```{r}
 library(ggfortify)
